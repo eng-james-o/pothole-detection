@@ -1,0 +1,9 @@
+# Map API-facing model names to Ultralytics .pt files.
+# Paths can be absolute or relative to the repository root.
+models:
+  - name: yolov8n
+    path: deployment/models/yolov8n.pt
+
+# Optional: set a default model name returned by /models and used by /predict
+# if the client does not pass `model` in form-data.
+default_model: yolov8n
