@@ -6,7 +6,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-import yaml
+import yaml 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from ultralytics import YOLO
@@ -18,6 +18,7 @@ MODEL_CONFIG_PATH = Path(os.getenv("MODEL_CONFIG_PATH", "deployment/model_config
 INFERENCE_CONF = float(os.getenv("INFERENCE_CONF", "0.25"))
 INFERENCE_IOU = float(os.getenv("INFERENCE_IOU", "0.45"))
 MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", "8000000"))
+DEFAULT_MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "").strip()
 
 
 class ModelStore:
@@ -59,9 +60,16 @@ class ModelStore:
 
     @property
     def default_model(self) -> str:
+        # Highest precedence: env override for deployment-time control.
+        if DEFAULT_MODEL_NAME and DEFAULT_MODEL_NAME in self.model_map:
+            return DEFAULT_MODEL_NAME
+
+        # Next: configuration file default.
         configured = self._config.get("default_model")
         if configured and configured in self.model_map:
             return configured
+
+        # Final fallback: first configured model.
         return next(iter(self.model_map.keys()))
 
     def available_models(self) -> list[dict[str, Any]]:
@@ -153,6 +161,7 @@ async def predict(
     iou: float | None = Form(None),
 ) -> JSONResponse:
     model_name = model or store.default_model
+    default_model_used = model is None
     conf_threshold = INFERENCE_CONF if conf is None else float(conf)
     iou_threshold = INFERENCE_IOU if iou is None else float(iou)
 
@@ -209,6 +218,7 @@ async def predict(
 
     response = {
         "model": model_name,
+        "default_model_used": default_model_used,
         "image": {
             "filename": file.filename,
             "content_type": file.content_type,

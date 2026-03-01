@@ -22,15 +22,24 @@ Edit `deployment/model_config.yaml` and map API model names to `.pt` files.
 models:
   - name: yolov8n
     path: deployment/models/yolov8n.pt
+  - name: yolov9c
+    path: deployment/models/yolov9c.pt
   - name: yolov11
-    path: deployment/models/yolo11n-best.pt
+    path: deployment/models/yolov11.pt
+  - name: yolov12n
+    path: deployment/models/yolov12n.pt
+  - name: yolov8_fpn
+    path: deployment/models/yolov8-fpn.pt
 
-default_model: yolov8n
+default_model: yolov9c
 ```
 
 Notes:
+
 - Paths can be absolute or relative to the repo root.
 - API will lazy-load models on first request.
+- `default_model` is returned by `GET /models` and used by `POST /predict` when `model` is omitted.
+- Optional runtime override: set `DEFAULT_MODEL_NAME` env var to any configured model name.
 
 ## Run locally
 
@@ -70,6 +79,7 @@ curl -X POST "http://localhost:8000/predict" \
 ```
 
 Response contains:
+
 - model used
 - input image metadata
 - inference settings and latency
@@ -86,15 +96,18 @@ Response contains:
 ### Option B: Manual Web Service
 
 Use these settings:
+
 - Environment: `Python`
 - Build command: `pip install -r deployment/requirements.txt`
 - Start command: `uvicorn deployment.app:app --host 0.0.0.0 --port $PORT`
 
 Set environment variables:
+
 - `MODEL_CONFIG_PATH=deployment/model_config.yaml`
 - `INFERENCE_CONF=0.25`
 - `INFERENCE_IOU=0.45`
 - `MAX_IMAGE_BYTES=8000000`
+- `DEFAULT_MODEL_NAME=yolov8n`
 
 ## Important production notes
 

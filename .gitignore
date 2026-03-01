@@ -1,1 +1,11 @@
+# Environment and cache files
 .venv/
+__pycache__/
+*.pyc
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Model files
+*.pt
+*.onnx
