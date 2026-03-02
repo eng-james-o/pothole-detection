@@ -1,0 +1,12 @@
+names:
+- Pothole
+nc: 1
+roboflow:
+  license: Public Domain
+  project: new-pothole-detection
+  url: https://universe.roboflow.com/smartathon/new-pothole-detection/dataset/2
+  version: 2
+  workspace: smartathon
+test: /kaggle/working/New-pothole-detection-2/test/images
+train: /kaggle/working/New-pothole-detection-2/train/images
+val: /kaggle/working/New-pothole-detection-2/valid/images
