@@ -74,6 +74,27 @@ The notebook generates structured CSV outputs.
 
 `YOLOv8-FPN`: custom neck simplification favoring speed over localization quality.
 
+#### YOLOv8-FPN architecture breakdown
+
+The YOLOv8-FPN variant in this project keeps the YOLOv8-style backbone/detection head but simplifies the neck toward an FPN-style multi-scale fusion path.
+
+Practical effect of this modification:
+
+- Fewer feature aggregation operations compared with heavier bi-directional necks.
+- Lower computational load (FLOPs proxy), improving latency and FPS.
+- Slightly weaker fine localization/feature re-aggregation, which can reduce detection quality on hard cases.
+
+Conceptually:
+
+1. Backbone extracts hierarchical features (`P3`, `P4`, `P5`).
+2. FPN top-down path upsamples high-level semantics and merges with lower-level maps.
+3. Detection head predicts boxes/classes from fused multi-scale features.
+
+Trade-off expected from design:
+
+- Speed gains, especially on constrained hardware.
+- Potential drop in `mAP50-95` due to less expressive feature fusion.
+
 ## 3. End-to-End Workflow
 
 ### 3.1 Numbered workflow
@@ -105,6 +126,8 @@ flowchart TB
 
 ## 4. Core Formulas and Metrics
 
+### 4.1 Detection quality metrics
+
 IoU (Intersection over Union):
 $$
 IoU = \frac{|B_{pred} \cap B_{gt}|}{|B_{pred} \cup B_{gt}|}
@@ -114,26 +137,44 @@ Precision:
 $$
 Precision = \frac{TP}{TP + FP}
 $$
+Precision indicates how many predicted potholes are truly potholes. High precision reduces false alarms.
 
 Recall:
 $$
 Recall = \frac{TP}{TP + FN}
 $$
+Recall indicates how many actual potholes are detected. In road safety workflows, recall is critical because false negatives (missed potholes) are operationally costly.
 
 F1-score:
 $$
 F1 = \frac{2 \cdot Precision \cdot Recall}{Precision + Recall}
 $$
+F1 balances precision and recall when both matter.
+
+mAP metrics:
+
+- `mAP50`: AP at IoU threshold `0.50`.
+- `mAP50-95`: AP averaged from IoU `0.50` to `0.95` (stricter localization quality indicator).
+
+### 4.2 Runtime metrics
 
 Frame rate:
 $$
 FPS = \frac{1000}{Latency_{ms}}
 $$
 
-mAP metrics:
+Latency summary statistics used in benchmarking:
 
-- `mAP50`: AP at IoU threshold `0.50`
-- `mAP50-95`: AP averaged from IoU `0.50` to `0.95`
+- `mean`: average latency across runs.
+- `p50`: median latency (typical-case runtime).
+- `p95`: 95th percentile latency (near worst-case runtime).
+- `std`: standard deviation of latency (jitter/stability).
+
+Interpretation of key runtime values:
+
+- Low `mean` with high `p95` suggests occasional spikes.
+- Low `std` indicates stable inference timing.
+- For real-time systems, `p95` is usually more actionable than mean alone.
 
 ## 5. EDA Summary
 
@@ -160,6 +201,60 @@ This figure highlights variation across annotation geometry and split behavior. 
 
 ![EDA Samples](eda3.png)
 The qualitative sample overlays confirm annotation quality and variability in road texture, lighting, and pothole shape. This supports the later use of confidence-threshold sweeps in evaluation.
+
+## 5.1 Training Procedure and Optimization
+
+### 5.1.1 Training workflow (numbered)
+
+1. Initialize model weights/config (`.pt` pretrained or custom YAML build).
+2. Train on YOLO-format splits with fixed `imgsz=640` and configured batch size.
+3. Apply data augmentation (mosaic/mixup/scale/translation) from training config.
+4. Save checkpoints per run (`last.pt`, `best.pt`, `results.csv`).
+5. Resume interrupted runs from `last.pt` using checkpoint-aware logic.
+6. Validate on `val` split and store mAP metrics.
+
+### 5.1.2 Training workflow (Mermaid)
+
+```mermaid
+flowchart TD
+    A[Model Init] --> B[Mini-batch Forward]
+    B --> C[Loss Computation]
+    C --> D[Backpropagation]
+    D --> E[Optimizer Step]
+    E --> F[Checkpoint Save]
+    F --> G{Interrupted?}
+    G -- Yes --> H[Resume from last.pt]
+    G -- No --> I[Validation + Best Checkpoint]
+```
+
+### 5.1.3 Optimization objective and loss composition
+
+Object detection training optimizes a composite loss:
+$$
+\mathcal{L}_{total} = \lambda_{box}\mathcal{L}_{box} + \lambda_{cls}\mathcal{L}_{cls} + \lambda_{dfl}\mathcal{L}_{dfl}
+$$
+where:
+
+- \(\mathcal{L}_{box}\): box regression loss (localization quality)
+- \(\mathcal{L}_{cls}\): classification loss
+- \(\mathcal{L}_{dfl}\): distribution focal loss term used in modern YOLO heads
+- \(\lambda\) terms: weighting coefficients
+
+Parameter update step:
+$$
+\theta_{t+1} = \theta_t - \eta \nabla_{\theta} \mathcal{L}_{total}
+$$
+with learning rate \(\eta\) and optimizer-defined update dynamics.
+
+### 5.1.4 Training diagnostics and chart references
+
+The following exported plots support training/evaluation interpretation:
+
+- `results/benchmark_results.png` (accuracy-latency frontier)
+- `results/benchmark_latency_vs_imgsize.png` (scale sensitivity)
+- `results/qualitative_f1_distribution.png` (per-image stability)
+
+These plots should be read together with CSV outputs to avoid drawing conclusions from one metric only.
 
 ## 6. Training and Evaluation Results
 
