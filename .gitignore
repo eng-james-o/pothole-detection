@@ -5,7 +5,11 @@ __pycache__/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+pothole-detection (10).ipynb
 
 # Model files
 *.pt
 *.onnx
+
+# Reports
+*.pdf
