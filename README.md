@@ -103,11 +103,14 @@ Use these settings:
 
 Set environment variables:
 
+- `PYTHON_VERSION=3.12.8`
 - `MODEL_CONFIG_PATH=deployment/model_config.yaml`
 - `INFERENCE_CONF=0.25`
 - `INFERENCE_IOU=0.45`
 - `MAX_IMAGE_BYTES=8000000`
 - `DEFAULT_MODEL_NAME=yolov8n`
+
+If Render defaults to Python `3.14`, some dependencies (notably `pydantic-core`) may fall back to source builds and fail during install. Pinning `PYTHON_VERSION` to `3.12.8` avoids this.
 
 ## Important production notes
 

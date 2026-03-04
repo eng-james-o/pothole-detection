@@ -7,6 +7,8 @@ services:
     buildCommand: pip install -r deployment/requirements.txt
     startCommand: uvicorn deployment.app:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
       - key: MODEL_CONFIG_PATH
         value: deployment/model_config.yaml
       - key: INFERENCE_CONF
