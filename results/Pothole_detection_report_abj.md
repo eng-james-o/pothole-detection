@@ -61,14 +61,17 @@ Bounding-box summary:
 - Median normalised area: `0.0161`
 
 ![EDA Distribution](eda1.png)
+
 This plot captures the label geometry distribution. The key takeaway is the long-tail area profile: the dataset has many small to medium potholes and fewer very large ones, which motivates using architectures and augmentations that preserve small-object sensitivity.
 
 ![EDA Split/Scatter](eda2.png)
+
 This figure highlights variation across annotation geometry and split behavior. The spread supports the decision to benchmark multiple architectures rather than optimize a single model early.
 
 The area-vs-aspect-ratio scatter (split-colored) shows heterogeneous object geometry across train/valid/test splits, including compact near-circular potholes and elongated irregular defects. Because detection heads and feature aggregation strategies react differently to this geometric diversity, benchmarking only one architecture could overfit conclusions to a narrow object profile; evaluating multiple architectures improves confidence that performance trends are robust across morphology regimes.
 
 ![EDA Samples](eda3.png)
+
 The qualitative sample overlays confirm annotation quality and variability in road texture, lighting, and pothole shape. This supports the later use of confidence-threshold sweeps in evaluation.
 
 ### **3.4 Pre-processing Strategy**
