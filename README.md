@@ -17,19 +17,25 @@ A production-oriented inference API is provided in `deployment/`.
 ## Configure models
 
 Edit `deployment/model_config.yaml` and map API model names to `.pt` files.
+You can keep models in-repo or host them remotely and let the API download on first use.
 
 ```yaml
 models:
   - name: yolov8n
     path: deployment/models/yolov8n.pt
+    url: ""
   - name: yolov9c
     path: deployment/models/yolov9c.pt
+    url: ""
   - name: yolov11
     path: deployment/models/yolov11.pt
+    url: ""
   - name: yolov12n
     path: deployment/models/yolov12n.pt
+    url: ""
   - name: yolov8_fpn
     path: deployment/models/yolov8-fpn.pt
+    url: ""
 
 default_model: yolov9c
 ```
@@ -40,6 +46,33 @@ Notes:
 - API will lazy-load models on first request.
 - `default_model` is returned by `GET /models` and used by `POST /predict` when `model` is omitted.
 - Optional runtime override: set `DEFAULT_MODEL_NAME` env var to any configured model name.
+
+### Remote model hosting (Hugging Face or Kaggle)
+
+If you do not want to commit `.pt` files into GitHub, add a `url` for each model. The API will download it to a local cache directory on first request.
+
+Example (Hugging Face):
+
+```yaml
+models:
+  - name: yolov9c
+    path: deployment/models/yolov9c.pt
+    url: "https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov9c.pt"
+```
+
+Notes:
+
+- Recommended: host on Hugging Face for direct HTTP downloads.
+- For Kaggle, ensure the file is publicly accessible via a direct download URL.
+- The cache directory defaults to `/tmp/models`. Override with `MODEL_CACHE_DIR`.
+
+Hugging Face model files used by this project:
+
+- `https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov8n.pt`
+- `https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov9c.pt`
+- `https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov11.pt`
+- `https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov12n.pt`
+- `https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov8-fpn.pt`
 
 ## Run locally
 

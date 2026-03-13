@@ -19,3 +19,5 @@ services:
         value: "8000000"
       - key: YOLO_CONFIG_DIR
         value: "/tmp/Ultralytics"
+      - key: MODEL_CACHE_DIR
+        value: "/tmp/models"

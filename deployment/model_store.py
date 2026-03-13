@@ -1,11 +1,12 @@
 import threading
 from pathlib import Path
 from typing import Any
+from urllib.request import Request, urlopen
 
 import yaml
 from ultralytics import YOLO
 
-from deployment.config import DEFAULT_MODEL_NAME
+from deployment.config import DEFAULT_MODEL_NAME, MODEL_CACHE_DIR
 
 class ModelStore:
     def __init__(self, config_path: Path) -> None:
@@ -44,6 +45,38 @@ class ModelStore:
             mapping[item["name"]] = item["path"]
         return mapping
 
+    def _model_entry(self, model_name: str) -> dict[str, Any]:
+        for item in self._config.get("models", []):
+            if item.get("name") == model_name:
+                return item
+        raise KeyError(f"Unknown model `{model_name}`")
+
+    def _resolve_model_path(self, item: dict[str, Any], allow_download: bool) -> Path:
+        raw_path = Path(item["path"])
+        model_path = raw_path if raw_path.is_absolute() else Path.cwd() / raw_path
+        if model_path.exists():
+            return model_path
+
+        url = (item.get("url") or "").strip()
+        if not url:
+            return model_path
+
+        cache_dir = MODEL_CACHE_DIR
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = cache_dir / model_path.name
+        if cache_path.exists() or not allow_download:
+            return cache_path
+
+        request = Request(url, headers={"User-Agent": "pothole-detection-api/1.0"})
+        with urlopen(request, timeout=60) as response:
+            with open(cache_path, "wb") as fh:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+        return cache_path
+
     @property
     def default_model(self) -> str:
         if DEFAULT_MODEL_NAME and DEFAULT_MODEL_NAME in self.model_map:
@@ -57,16 +90,17 @@ class ModelStore:
 
     def available_models(self) -> list[dict[str, Any]]:
         out = []
-        for name, path in self.model_map.items():
-            full_path = Path(path)
-            if not full_path.is_absolute():
-                full_path = Path.cwd() / full_path
+        for name in self.model_map:
+            item = self._model_entry(name)
+            full_path = self._resolve_model_path(item, allow_download=False)
+            url = (item.get("url") or "").strip()
             out.append(
                 {
                     "name": name,
                     "path": str(full_path),
                     "exists": full_path.exists(),
                     "loaded": name in self._models,
+                    "has_remote": bool(url),
                 }
             )
         return out
@@ -79,9 +113,8 @@ class ModelStore:
             if model_name in self._models:
                 return self._models[model_name]
 
-            model_path = Path(self.model_map[model_name])
-            if not model_path.is_absolute():
-                model_path = Path.cwd() / model_path
+            item = self._model_entry(model_name)
+            model_path = self._resolve_model_path(item, allow_download=True)
 
             if not model_path.exists():
                 raise FileNotFoundError(f"Model file not found: {model_path}")

@@ -3,14 +3,19 @@
 models:
   - name: yolov8n
     path: deployment/models/yolov8n.pt
+    url: "https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov8n.pt"
   - name: yolov9c
     path: deployment/models/yolov9c.pt
+    url: "https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov9c.pt"
   - name: yolov11
     path: deployment/models/yolov11.pt
+    url: "https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov11.pt"
   - name: yolov12n
     path: deployment/models/yolov12n.pt
+    url: "https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov12n.pt"
   - name: yolov8_fpn
     path: deployment/models/yolov8-fpn.pt
+    url: "https://huggingface.co/EngJamesO/pothole-detector/resolve/main/models/yolov8-fpn.pt"
 
 # Default model returned by /models and used by /predict
 # when the request does not include the `model` field.
