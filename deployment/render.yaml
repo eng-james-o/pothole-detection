@@ -17,3 +17,5 @@ services:
         value: "0.45"
       - key: MAX_IMAGE_BYTES
         value: "8000000"
+      - key: YOLO_CONFIG_DIR
+        value: "/tmp/Ultralytics"

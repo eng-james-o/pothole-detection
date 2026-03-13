@@ -20,6 +20,14 @@ store = ModelStore(MODEL_CONFIG_PATH)
 def create_app() -> FastAPI:
     app = FastAPI(title=APP_NAME, version=APP_VERSION)
 
+    @app.get("/")
+    def root() -> dict[str, Any]:
+        return {
+            "message": "Pothole Detection API",
+            "docs": "/docs",
+            "health": "/health",
+        }
+
     @app.get("/health")
     def health() -> dict[str, Any]:
         return {
@@ -52,10 +60,24 @@ def create_app() -> FastAPI:
 
     @app.post("/predict")
     async def predict(
-        file: UploadFile = File(...),
-        model: str | None = Form(None),
-        conf: float | None = Form(None),
-        iou: float | None = Form(None),
+        file: UploadFile = File(
+            ...,
+            description="Image file (JPEG/PNG). Max size controlled by MAX_IMAGE_BYTES.",
+        ),
+        model: str | None = Form(
+            None,
+            description="Optional model name from /models. Defaults to the configured default model.",
+        ),
+        conf: float | None = Form(
+            None,
+            description="Confidence threshold in [0.0, 1.0]. Defaults to INFERENCE_CONF.",
+            example=0.25,
+        ),
+        iou: float | None = Form(
+            None,
+            description="IoU threshold in [0.0, 1.0]. Defaults to INFERENCE_IOU.",
+            example=0.45,
+        ),
     ) -> JSONResponse:
         model_name = model or store.default_model
         default_model_used = model is None
