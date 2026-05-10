@@ -1,0 +1,8 @@
+flowchart TB
+    A[Test Images] --> B[Inference per Model and Confidence]
+    B --> C[IoU Matching with Ground Truth]
+    C --> D[TP / FP / FN Counts]
+    D --> E[Precision Recall F1]
+    E --> F[Per-Image CSV]
+    E --> G[Model Summary CSV]
+    G --> H[Qualitative Plots]

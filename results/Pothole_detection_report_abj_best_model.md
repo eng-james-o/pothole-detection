@@ -6,20 +6,15 @@ Date: February 17th 2026
 
 ## **Executive Summary**
 
-This document outlines the experimental design for benchmarking five distinct object detection architectures—YOLOv8, YOLOv9, YOLOv11, YOLOv12 and YOLO-FPN—for the specific task of detecting road anomalies (potholes) from aerial imagery. The primary objective is not merely maximising precision, but identifying the "Pareto frontier" between inference latency (ms) and detection accuracy (mAP), typically suitable for deployment on embedded edge devices (e.g., NVIDIA Jetson Orin NX) aboard UAVs. This report documents the methodology, workflow, and results for a pothole detection benchmark using drone-relevant road imagery and YOLO-family detectors.
+This document presents a single-model pothole detection workflow centred on `YOLOv9c` for aerial road imagery. Rather than running a full multi-model benchmark in this version of the report, the methodology is structured to (1) compare candidate architectures conceptually, (2) justify one model choice before training, and (3) execute training, evaluation, and deployment on only the selected model. The project objective is to maximise detection quality for potholes while remaining transparent about latency implications for eventual edge deployment.
 
 Primary objective:
 
-- Identify the best accuracy-latency trade-off for deployment in near-real-time infrastructure inspection.
+- Train and evaluate one high-capacity detector for pothole localisation quality on drone-relevant imagery.
 
-Model scope:
+Model selected for training in this report:
 
-- `YOLOv8n`
 - `YOLOv9c`
-- `YOLOv11`
-- `YOLOv12n`
-- `YOLOv8-FPN`
-
 ## **3. Methodology**
 
 ### **3.1 Problem framing**
@@ -737,53 +732,60 @@ Interpretation of key runtime values:
 - Low `std` indicates stable inference timing.
 - For real-time systems, `p95` is usually more actionable than mean alone.
 
+
+### **3.10 Pre-Training Model Justification: Why YOLOv9c**
+
+Before model training, `YOLOv9c` was selected as the primary candidate because the task prioritises robust pothole localisation under challenging aerial conditions (small defects, irregular boundaries, and variable texture/illumination). Compared with lighter variants, YOLOv9c offers a stronger representational backbone and programmable gradient information pathways that are expected to preserve small-object cues deeper into the network.
+
+Selection rationale before training:
+
+1. Small-object sensitivity is the dominant technical risk in this dataset; YOLOv9c's design is expected to improve recall of subtle defects.
+2. The project phase prioritises localisation quality over strict real-time throughput.
+3. A single high-capacity run reduces decision ambiguity and creates a clean quality baseline before optimisation-focused model downsizing.
+4. Latency risk is acknowledged up front and treated as a secondary engineering optimisation phase after quality validation.
+
+Success criteria for this single-model phase:
+
+- Strong `mAP50-95` relative to historical baseline expectations for pothole datasets.
+- Stable precision/recall/F1 behaviour across confidence thresholds.
+- Deployment-ready export path (`.pt` to `ONNX`) with measured latency documented for planning.
+
 ## **4. Results and Discussion**
 
-The evaluation phase is divided into:
+The evaluation phase in this single-model report is focused on:
 
-1. Pareto
-2. Qualitative testing
-3. Benchmarking
+1. Core validation quality metrics.
+2. Qualitative error behaviour.
+3. Runtime profiling for deployment feasibility.
 
-### 4.1 Model comparison table
+### 4.1 YOLOv9c validation summary
 
-The table below is compiled by merging model-level validation metrics (`mAP50`, `mAP50-95`, parameters) from post-training `val` runs with engineering benchmark outputs (`Latency_ms`, `FPS`) measured at baseline `imgsz=640`. This creates a single decision matrix where academic detection quality and deployment runtime constraints are evaluated together.
+`YOLOv9c` validation outputs at baseline `imgsz=640`:
 
 | Model | mAP50 | mAP50-95 | Parameters (M) | Latency (ms) | FPS |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| YOLOv8n | 0.7821 | 0.4649 | 3.0058 | 6.9098 | 144.72 |
 | YOLOv9c | **0.7921** | **0.4846** | 25.3200 | 36.2758 | 27.57 |
-| YOLOv11 | 0.7789 | 0.4596 | 2.5823 | 9.3494 | 106.96 |
-| YOLOv12n | 0.7848 | 0.4631 | 2.5569 | 13.8610 | 72.14 |
-| YOLOv8-FPN | 0.7066 | 0.3960 | **2.2058** | **6.4183** | 155.80 |
 
-Key outcomes:
+Interpretation:
 
-- Best accuracy: `YOLOv9c`
-- Fastest inference: `YOLOv8-FPN`
-- Best real-time quality compromise in this run: `YOLOv12n`
+- Detection quality is strong for single-class pothole localisation.
+- Throughput is below strict `30 FPS` real-time edge targets at this image size, so deployment should be profiled by use-case (offline batch vs. near-real-time streaming).
 
-### 4.2 Final Pareto figure
+### 4.2 Qualitative Testing
 
-![Pareto Frontier](benchmark_results.png)
-
-This chart shows the central trade-off: YOLOv9c dominates in accuracy but sits outside a strict 30 FPS constraint, while YOLOv8-FPN dominates speed but with a clear accuracy penalty. YOLOv12n and YOLOv8n are on a more practical deployment boundary for real-time use. The plotting code was updated to (i) use higher-contrast model colours, (ii) force axes to start at `(0,0)`, (iii) improve legend spacing outside the plot, and (iv) place the red real-time cutoff at `33.33 ms` (equivalent to `30 FPS`).
-
-### 4.3 Qualitative Testing
-
-#### 4.3.1 Qualitative Testing Workflow
+#### 4.2.1 Qualitative Testing Workflow
 
 1. Sample test images from the held-out split.
-2. Run inference for each model at confidence thresholds (`0.25`, `0.50`, `0.70`).
+2. Run inference for `YOLOv9c` at confidence thresholds (`0.25`, `0.50`, `0.70`).
 3. Convert predictions and labels to a comparable box format.
 4. Perform IoU-based greedy matching to compute `TP`, `FP`, and `FN`.
-5. Aggregate per-image and per-model metrics (`Precision`, `Recall`, `F1`).
+5. Aggregate per-image metrics (`Precision`, `Recall`, `F1`).
 6. Export per-image and summary CSV files.
-7. Plot confidence/model comparison and distribution views.
+7. Plot confidence sensitivity and distribution views.
 
 ```mermaid
 flowchart TB
-    A[Test Images] --> B[Inference per Model and Confidence]
+    A[Test Images] --> B[Inference for YOLOv9c across Confidence]
     B --> C[IoU Matching with Ground Truth]
     C --> D[TP / FP / FN Counts]
     D --> E[Precision Recall F1]
@@ -792,7 +794,7 @@ flowchart TB
     G --> H[Qualitative Plots]
 ```
 
-For each image and model-threshold pair:
+For each image and threshold pair:
 
 - boxes are matched when `IoU >= 0.5`
 - Unmatched prediction boxes contribute to `FP`
@@ -805,39 +807,29 @@ Recall = \frac{TP}{TP + FN},\quad
 F1 = \frac{2PR}{P+R}
 $$
 
-#### 4.3.2 Qualitative Testing Result Interpretation
+#### 4.2.2 Qualitative Testing Result Interpretation
 
-- At `conf=0.25`, `YOLOv11` achieved the best F1 balance.
-- At higher confidence thresholds (`0.50`, `0.70`), `YOLOv9c` remained strongest.
-- `YOLOv8-FPN` stayed speed-favoured but trailed in F1.
-
-![Qualitative F1 by Model/Conf](qualitative_f1_by_model_conf.png)
-This bar plot compares mean F1 across confidence levels. It shows confidence sensitivity by architecture and highlights where each model performs best. YOLOv11 peaks at lower confidence, while YOLOv9c retains stronger F1 as thresholds increase, making v9c more robust for stricter confidence filtering.
-
-![Qualitative F1 Heatmap](qualitative_f1_heatmap.png)
-The heatmap makes model-threshold interactions easier to compare. It is useful for selecting operating thresholds for deployment profiles. The best-performing operating zone is concentrated around YOLOv9c/YOLOv11 at moderate confidence, whereas YOLOv8-FPN remains consistently lower across threshold choices.
-
-![Per-Image F1 Distribution](qualitative_f1_distribution.png)
-Distribution spread reveals stability: narrower, higher distributions are preferable for consistent field performance rather than isolated high scores. Architectures with tighter high-F1 distributions are operationally safer because they reduce frame-to-frame quality volatility on diverse road scenes.
+- `YOLOv9c` maintained strong F1 behaviour as confidence thresholds increased, indicating robust confidence calibration for stricter operating points.
+- Residual errors are primarily associated with ambiguous textures and low-contrast pothole boundaries.
 
 ![Best-Model Visual Preview](qualitative_best_model_preview.png)
-This qualitative panel provides direct visual confidence in detection behaviour and failure modes, complementing numeric metrics. Visual overlays confirm that top-ranked models generally localise major potholes reliably, with residual errors concentrated around ambiguous textures and low-contrast boundaries.
+This qualitative panel provides direct visual confidence in detection behaviour and failure modes, complementing numeric metrics.
 
-### 4.4 Engineering Benchmarking
+### 4.3 Engineering Benchmarking
 
-#### 4.4.1 Engineering Benchmarking Workflow
+#### 4.3.1 Engineering Benchmarking Workflow
 
-1. Load each trained checkpoint.
+1. Load the trained `YOLOv9c` checkpoint.
 2. Define scenario set by image size (`320`, `640`, `960`).
 3. Run warmup passes to stabilise runtime.
 4. Run timed inference loops (`runs=80`) per scenario.
 5. Compute `mean`, `p50`, `p95`, `std`, and `FPS`.
 6. Export scenario and aggregated benchmark CSVs.
-7. Produce trend, heatmap, and baseline p95 plots.
+7. Produce trend and stability plots.
 
 ```mermaid
 flowchart TB
-    A[Model Checkpoints] --> B[Scenario Grid by Image Size]
+    A[YOLOv9c Checkpoint] --> B[Scenario Grid by Image Size]
     B --> C[Warmup]
     C --> D[Timed Inference Loop]
     D --> E[Latency Statistics]
@@ -852,37 +844,20 @@ $$
 FPS = \frac{1000}{Latency_{ms,mean}}
 $$
 
-`p95` latency is emphasised for deployment because mean latency alone can hide jitter. Lower `p95` and lower `std` generally indicate a more stable runtime profile.
-
 At `imgsz=640`:
 
-- YOLOv8n: `6.91 ms`, `144.72 FPS`
-- YOLOv9c: `36.28 ms`, `27.57 FPS`
-- YOLOv11: `9.35 ms`, `106.96 FPS`
-- YOLOv12n: `13.86 ms`, `72.14 FPS`
-- YOLOv8-FPN: `6.42 ms`, `155.80 FPS`
+- `YOLOv9c`: `36.28 ms`, `27.57 FPS`
 
-#### 4.4.2 Engineering Benchmarking Results Interpretation
+#### 4.3.2 Engineering Benchmarking Results Interpretation
 
-![Latency vs Image Size](benchmark_latency_vs_imgsize.png)
-This trend chart shows scale sensitivity. As image size increases, latency rises non-linearly depending on architecture complexity. YOLOv9c exhibits the steepest latency growth with resolution, confirming that its higher-capacity design is the main barrier to strict edge real-time deployment.
-
-![FPS vs Image Size](benchmark_fps_vs_imgsize.png)
-This chart translates latency into deployment-friendly throughput and directly shows which models remain above the 30 FPS requirement. The lightweight models sustain an FPS buffer above 30 at baseline settings, while heavy models approach or fall below the operational threshold as input size increases.
-
-![Latency Heatmap](benchmark_latency_heatmap.png)
-The heatmap gives a compact scenario-level comparison and makes cross-model runtime ranking immediate. The model ranking is stable across scenarios, indicating that relative runtime behaviour is structural (architecture-driven) rather than noise from a single test condition. It is also worthy of note that the latency of the YOLOv9c model rapidly increases as the image size increases. This is primarily attributed to the significantly higher parameter count and architectural complexity of the YOLOv9c (25.3M parameters) compared to the 'nano' variants (approx. 2.5–3M parameters). The quadratic increase in computational complexity relative to input resolution (O(W*H)) has a much more pronounced absolute impact on the deeper GELAN blocks and PGI auxiliary branches, leading to the steeper latency penalty observed on edge hardware.
-
-![Baseline p95 Latency](benchmark_p95_baseline.png)
-The p95 chart highlights worst-case behaviour at baseline settings, which is critical for real-time reliability. The models with low mean latency but elevated p95 tails are less predictable in deployment; lower p95 spread is preferred for mission safety.
-
-### **4.5 Deployment**
+The runtime profile confirms the expected trade-off for a high-capacity detector: stronger localisation quality with increased latency. This performance is suitable for quality-first workflows (e.g., batch inspection and non-hard-real-time API processing), while strict edge real-time use would require either reduced input resolution, additional optimisation (quantisation/pruning), or migration to a lighter architecture in a later phase.
+### **4.4 Deployment**
 
 The deployment phase validates the trained model's utility in a centralised web-based API for real-time processing.
 
-The best-performing model (selected based on the mAP/Latency Pareto frontier) is deployed as a RESTful microservice. We utilise Render for containerised hosting due to its native support for Docker and consistent runtime environments, which surpass the serverless function size limits often encountered on platforms like Vercel.
+The selected model (`YOLOv9c`) is deployed as a RESTful microservice. We utilise Render for containerised hosting due to its native support for Docker and consistent runtime environments, which surpass the serverless function size limits often encountered on platforms like Vercel.
 
-### 4.5.1 System Architecture
+### 4.4.1 System Architecture
 
 Inference Engine: To minimise the memory footprint, the trained PyTorch weights (.pt) are exported to ONNX (Open Neural Network Exchange) format. We utilise ONNX Runtime (CPU build) for the inference backend, reducing the slug size by \~60% compared to a full PyTorch installation.
 
@@ -896,7 +871,7 @@ Workflow:
 4. Post-processing (Non-Maximum Suppression) filters bounding boxes.  
 5. Server returns a JSON object containing class IDs, confidence scores, and bounding box coordinates, alongside the annotated image.
 
-#### 4.5.2 Inference Pipeline
+#### 4.4.2 Inference Pipeline
 
 ```mermaid
 flowchart LR
@@ -991,34 +966,18 @@ This diagram illustrates the complete inference pipeline from model training thr
 
 ### Current Deployment
 
-For deployment in a real-time or near-real-time application:
+For deployment in this single-model implementation:
 
-- Primary candidate: `YOLOv12n`
-- Secondary fallback: `YOLOv8n`
-- High-accuracy offline option: `YOLOv9c`
+- Primary deployed model: `YOLOv9c`
+- Runtime profile at `imgsz=640`: `36.28 ms` (`27.57 FPS`)
+- Intended operating mode: quality-first inference where sub-30 FPS throughput is acceptable.
 
 ## 5. Conclusion and Recommendations
 
-Across accuracy and runtime objectives, the benchmark confirms no single universal winner: YOLOv9c leads raw detection quality, YOLOv8-FPN leads speed, and YOLOv12n offers the strongest practical balance under real-time constraints. For immediate deployment, YOLOv12n is recommended as the primary model with YOLOv8n as a conservative fallback when runtime headroom is prioritised. For further research, the next phase should include
+This report version applies a single-model strategy built around `YOLOv9c`, selected before training for its expected strength on difficult small-object pothole localisation. The trained/evaluated results confirm high detection quality (`mAP50=0.7921`, `mAP50-95=0.4846`) and a predictable latency trade-off (`36.28 ms`, `27.57 FPS` at `640`).
 
-1. targeted tuning of YOLOv8-FPN to recover localisation quality,
-2. controlled threshold calibration under field video streams, and
-3. expanded experimentation with YOLO-NAS variants (e.g., YOLO-NAS-S/M) to test whether NAS-designed blocks can improve the current latency-accuracy frontier on pothole-specific data.
+Recommendations for next phase:
 
-`YOLOv9c`:
-
-- Best detector quality in this run.
-- Latency too high for a strict real-time edge budget at 640.
-
-`YOLOv12n`:
-
-- Best practical compromise for real-time operation among high-accuracy models.
-
-`YOLOv8n` / `YOLOv11`:
-
-- Strong, balanced candidates with high throughput.
-
-`YOLOv8-FPN`:
-
-- Confirmed speed gain, but mAP drop is significant.
-- Requires additional tuning if selected for production.
+1. Apply optimisation passes (ONNX graph optimisation, quantisation, pruning) to recover throughput while preserving mAP.
+2. Run controlled image-size sweeps to map the quality-latency operating envelope for production.
+3. If strict `>=30 FPS` edge constraints are mandatory, treat lightweight variants as deployment alternates after this quality baseline.

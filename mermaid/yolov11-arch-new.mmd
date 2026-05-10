@@ -1,0 +1,77 @@
+flowchart TD
+    I["Input Image<br/>640×640×3"] --> Stem["Conv Stem<br/>640×640→320×320×32"]
+    
+    Stem --> L1["C3k2 Block<br/>k=3, depth_multiple=1.0<br/>320×320→160×160×64"]
+    
+    L1 --> L2["C3k2 Block<br/>160×160→80×80×128"]
+    
+    L2 --> L3["C3k2 Block + C2ps<br/>Partial Stage Fusion<br/>80×80→40×40×256"]
+    
+    L3 --> SPPF["SPPF (Spatial Pyramid)<br/>Multi-scale Receptive Field"]
+    
+    subgraph Backbone["BACKBONE: Ultralytics v11 Optimized"]
+        direction TB
+        L1
+        L2
+        L3
+        SPPF
+    end
+    
+    SPPF --> P5["P5: 40×40<br/>High-Level Semantics"]
+    L3 --> P4["P4: 80×80<br/>Mid-Level Features"]
+    L2 --> P3["P3: 160×160<br/>Detail Features"]
+    
+    subgraph Neck["NECK: Multi-Scale Feature Fusion"]
+        direction TB
+        P5 --> Up1["Upsample<br/>40×40→80×80"]
+        P4 --> Fuse1["C2ps Fusion<br/>Concat + Reduce"]
+        Up1 --> Fuse1
+        Fuse1 --> Out4["80×80"]
+        
+        Out4 --> Up2["Upsample<br/>80×80→160×160"]
+        P3 --> Fuse2["C2ps Fusion"]
+        Up2 --> Fuse2
+        Fuse2 --> Out3["160×160"]
+        
+        Out3 --> Down1["Downsample<br/>160×160→80×80"]
+        Down1 --> Fuse3["C2ps Fusion"]
+        Out4 --> Fuse3
+        Fuse3 --> Final4["80×80"]
+        
+        Final4 --> Down2["Downsample<br/>80×80→40×40"]
+        Down2 --> Fuse4["C2ps Fusion"]
+        P5 --> Fuse4
+        Fuse4 --> Final5["40×40"]
+    end
+    
+    Out3 --> FP3["FP3: 160×160"]
+    Final4 --> FP4["FP4: 80×80"]
+    Final5 --> FP5["FP5: 40×40"]
+    
+    subgraph Head["DECOUPLED HEAD: Anchor-Free"]
+        direction TB
+        FP3 --> Cls3["Class Branch<br/>80×80×80"]
+        FP3 --> Reg3["Reg Branch<br/>80×80×64"]
+        
+        FP4 --> Cls4["Class Branch<br/>40×40×80"]
+        FP4 --> Reg4["Reg Branch<br/>40×40×64"]
+        
+        FP5 --> Cls5["Class Branch<br/>20×20×80"]
+        FP5 --> Reg5["Reg Branch<br/>20×20×64"]
+        
+        Cls3 --> Aggr["Aggregate Predictions"]
+        Cls4 --> Aggr
+        Cls5 --> Aggr
+        Reg3 --> Aggr
+        Reg4 --> Aggr
+        Reg5 --> Aggr
+    end
+    
+    Aggr --> NMS["NMS Filtering"]
+    NMS --> Output["Final Detections<br/>Efficient & Fast Inference"]
+    
+    style I fill:#e1f5ff
+    style Backbone fill:#fff3e0
+    style Neck fill:#f3e5f5
+    style Head fill:#e8f5e9
+    style Output fill:#c8e6c9

@@ -1,0 +1,9 @@
+flowchart TD
+    A[Model Init] --> B[Mini-batch Forward]
+    B --> C[Loss Computation]
+    C --> D[Backpropagation]
+    D --> E[Optimizer Step]
+    E --> F[Checkpoint Save]
+    F --> G{Interrupted?}
+    G -- Yes --> H[Resume from last.pt]
+    G -- No --> I[Validation + Best Checkpoint]

@@ -1,0 +1,67 @@
+flowchart TD
+    I["Input Image<br/>640×640×3"] --> Stem["Conv Stem<br/>640×640→320×320"]
+    
+    Stem --> C1["Backbone: CSPDarknet<br/>(Same as YOLOv8)"]
+    
+    C1 --> P5["P5: 40×40<br/>(4096 channels)"]
+    C1 --> P4["P4: 80×80<br/>(2048 channels)"]
+    C1 --> P3["P3: 160×160<br/>(1024 channels)"]
+    
+    subgraph FPN_Simplified["SIMPLIFIED FPN NECK (Latency Optimized)"]
+        direction TB
+        
+        TD["TOP-DOWN PATH ONLY<br/>(No Bottom-Up)"]
+        
+        P5 --> Up1["Upsample<br/>Bilinear Interpolation<br/>40×40→80×80"]
+        P4 --> Concat1["Concatenate"]
+        Up1 --> Concat1
+        Concat1 --> C2f4["Conv + Fusion<br/>80×80"]
+        
+        C2f4 --> Up2["Upsample<br/>80×80→160×160"]
+        P3 --> Concat2["Concatenate"]
+        Up2 --> Concat2
+        Concat2 --> C2f3["Conv + Fusion<br/>160×160"]
+        
+        TD -.->|Computational Savings| Savings["✓ 15-20% Speed<br/>✓ Fewer FLOPs<br/>✗ Less Localization Detail"]
+    end
+    
+    C2f3 --> Out3["FP3: 160×160"]
+    C2f4 --> Out4["FP4: 80×80"]
+    P5 --> Out5["FP5: 40×40"]
+    
+    subgraph Head["DECOUPLED HEAD"]
+        direction TB
+        Out3 --> Cls3["Classification<br/>160×160→80×80×80"]
+        Out3 --> Reg3["Regression<br/>160×160→80×80×64"]
+        
+        Out4 --> Cls4["Classification<br/>80×80→40×40×80"]
+        Out4 --> Reg4["Regression<br/>80×80→40×40×64"]
+        
+        Out5 --> Cls5["Classification<br/>40×40→20×20×80"]
+        Out5 --> Reg5["Regression<br/>40×40→20×20×64"]
+        
+        Cls3 --> Pred["Predictions Aggregation"]
+        Cls4 --> Pred
+        Cls5 --> Pred
+        Reg3 --> Pred
+        Reg4 --> Pred
+        Reg5 --> Pred
+    end
+    
+    Pred --> NMS["NMS<br/>(Fast on Edge Devices)"]
+    
+    NMS --> Output["✅ Final Detections<br/>High FPS, Lower mAP"]
+    
+    subgraph Comparison["📊 Comparison: Standard PANet vs Simplified FPN"]
+        direction LR
+        PANet["PANet<br/>✓ Better Localization<br/>✗ Higher Latency<br/>✗ More FLOPs"]
+        
+        FPN_Simple["Simplified FPN<br/>✓ Lower Latency<br/>✓ Fewer FLOPs<br/>✗ Weaker Precision"]
+    end
+    
+    style I fill:#e1f5ff
+    style C1 fill:#fff3e0
+    style FPN_Simplified fill:#ffe082
+    style Head fill:#e8f5e9
+    style Output fill:#c8e6c9
+    style Comparison fill:#f5f5f5

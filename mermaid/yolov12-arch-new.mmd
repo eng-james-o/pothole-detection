@@ -1,0 +1,85 @@
+flowchart TD
+    I["Input Image<br/>640×640×3"] --> Stem["Conv Stem + Norm + Activation<br/>640×640→320×320×32"]
+    
+    Stem --> R1["R-ELAN Block (Residual + Efficient Layer Aggregation)<br/>320×320→160×160"]
+    
+    R1 --> R2["R-ELAN Block<br/>160×160→80×80"]
+    
+    R2 --> R3["R-ELAN Block<br/>80×80→40×40"]
+    
+    R3 --> SPPF["SPPF (Spatial Pyramid Pooling)<br/>Multi-scale Context"]
+    
+    subgraph Backbone["BACKBONE: R-ELAN (Residual Efficient Layer Aggregation)"]
+        direction TB
+        R1
+        R2
+        R3
+        SPPF
+    end
+    
+    SPPF --> P5["P5: 40×40<br/>High-Level Semantics"]
+    R3 --> P4["P4: 80×80<br/>Mid-Level Features"]
+    R2 --> P3["P3: 160×160<br/>Detail Features"]
+    
+    subgraph Attention["AREA ATTENTION (Regional Context Module)"]
+        direction TB
+        AttnIn["Feature Map Partition<br/>Divide into Region Grid"]
+        
+        Query["Query: Linear Projection<br/>per Region"]
+        Key["Key: Linear Projection<br/>per Region"]
+        Value["Value: Linear Projection<br/>per Region"]
+        
+        AttnIn --> Query
+        AttnIn --> Key
+        AttnIn --> Value
+        
+        Query --> MatMul["Matrix Multiply<br/>Attention Scores"]
+        Key --> MatMul
+        
+        MatMul --> Softmax["Softmax<br/>Normalize Weights"]
+        
+        Softmax --> Apply["Apply Weights<br/>to Values"]
+        Value --> Apply
+        
+        Apply --> Output["Attention Output<br/>Context-Aware Features"]
+    end
+    
+    P5 --> Attention
+    P4 --> Attention
+    P3 --> Attention
+    
+    Attention --> Neck["Neck: Multi-Scale Feature Fusion<br/>Top-Down + Bottom-Up Paths"]
+    
+    Neck --> F3["Fused P3: 160×160<br/>High Context"]
+    Neck --> F4["Fused P4: 80×80<br/>Mid Context"]
+    Neck --> F5["Fused P5: 40×40<br/>High Context"]
+    
+    subgraph Head["DECOUPLED HEAD: Attention-Enhanced"]
+        direction TB
+        F3 --> C3["Classification<br/>Attention-refined<br/>80×80×80"]
+        F3 --> R3_Head["Regression<br/>Attention-refined<br/>80×80×64"]
+        
+        F4 --> C4["Classification<br/>80×80"]
+        F4 --> R4_Head["Regression<br/>80×80"]
+        
+        F5 --> C5["Classification<br/>80×80"]
+        F5 --> R5_Head["Regression<br/>80×80"]
+        
+        C3 --> Pred["Aggregate All Scales"]
+        C4 --> Pred
+        C5 --> Pred
+        R3_Head --> Pred
+        R4_Head --> Pred
+        R5_Head --> Pred
+    end
+    
+    Pred --> NMS["Non-Maximum Suppression<br/>Attention-Guided Filtering"]
+    
+    NMS --> Output["Final Detections<br/>Reduced False Positives"]
+    
+    style I fill:#e1f5ff
+    style Backbone fill:#fff3e0
+    style Attention fill:#f1f8e9
+    style Neck fill:#f3e5f5
+    style Head fill:#e8f5e9
+    style Output fill:#c8e6c9

@@ -1,0 +1,77 @@
+flowchart LR
+    subgraph Training["TRAINING PHASE"]
+        direction TB
+        TrainedModel["Trained Model Checkpoint<br/>best.pt (25-60 MB)<br/>PyTorch Format"]
+    end
+    
+    subgraph Export["MODEL EXPORT & CONVERSION"]
+        direction TB
+        PTLoad["Load PyTorch Weights<br/>from best.pt"]
+        PTLoad --> ONNXConvert["ONNX Conversion<br/>torch.onnx.export()"]
+        ONNXConvert --> ONNXOptimize["ONNX Optimization<br/>Quantization/Pruning<br/>(Optional)"]
+        ONNXOptimize --> ONNXFile["Export ONNX Model<br/>model.onnx (10-15 MB)<br/>60% size reduction"]
+    end
+    
+    subgraph Deployment["DEPLOYMENT INFRASTRUCTURE"]
+        direction TB
+        DockerBuild["Docker Container Build<br/>Python 3.10 Slim Base<br/>+ ONNX Runtime (CPU)<br/>+ FastAPI<br/>+ OpenCV<br/>Port 8000"]
+        DockerBuild --> ONNXRuntime["ONNX Runtime Initialization<br/>Load model.onnx<br/>Create Inference Session"]
+        ONNXRuntime --> FastAPI["FastAPI Server Ready<br/>POST /predict endpoint<br/>Listening for Requests"]
+    end
+    
+    subgraph ClientRequest["CLIENT REQUEST"]
+        direction TB
+        ClientInput["Client Application<br/>or HTTP Request"]
+        ClientInput --> ImageInput["Send Image<br/>Base64 encoded<br/>or Binary File<br/>or URL"]
+    end
+    
+    subgraph Preprocessing["IMAGE PREPROCESSING"]
+        direction TB
+        Decode["Decode Input<br/>Base64 → OpenCV Mat<br/>or Load Binary"]
+        Decode --> Resize["Resize Image<br/>Input → 640×640 pixels<br/>Maintain Aspect Ratio<br/>Pad if Necessary"]
+        Resize --> Normalize["Normalize Pixel Values<br/>Divide by 255<br/>Convert to Float32<br/>Range: 0.0-1.0"]
+        Normalize --> Convert["Convert to Model Format<br/>NCHW: 1×3×640×640<br/>Ready for Inference"]
+    end
+    
+    subgraph Inference["INFERENCE ENGINE"]
+        direction TB
+        InferSession["ONNX Runtime Session<br/>CPU/GPU Accelerated"]
+        InferSession --> Forward["Forward Pass<br/>Backbone: Extract Features<br/>Neck: Multi-scale Fusion<br/>Head: Predict Boxes+Classes"]
+        Forward --> RawOutputs["Raw Model Outputs<br/>Box Coordinates (4 values)<br/>Class Logits (1 value)<br/>Confidence Scores"]
+    end
+    
+    subgraph PostProcessing["POST-PROCESSING"]
+        direction TB
+        DecodeBoxes["Decode Bounding Boxes<br/>Normalize to 640×640<br/>Format: x_min, y_min, x_max, y_max"]
+        DecodeBoxes --> FilterConf["Filter by Confidence<br/>Remove scores < threshold<br/>Default threshold: 0.25"]
+        FilterConf --> NMS["Non-Maximum Suppression<br/>IoU threshold: 0.45<br/>Remove Overlapping Boxes<br/>Keep Highest Confidence"]
+        NMS --> ScaleBoxes["Scale to Original Image<br/>Map 640×640 → Original Size<br/>Maintain Aspect Ratio"]
+    end
+    
+    subgraph Output["SERVER RESPONSE"]
+        direction TB
+        CreateJSON["Construct JSON Response<br/>{<br/>  predictions: [...],<br/>  num_detections: int,<br/>  inference_time_ms: float,<br/>  model_name: string<br/>}"]
+        CreateJSON --> JSONDetails["Each Prediction Contains:<br/>class_id, class_name<br/>confidence_score<br/>bbox: [x_min, y_min, x_max, y_max]<br/>area_pixels"]
+        JSONDetails --> DrawAnnotations["Draw Annotations on Image<br/>Bounding boxes (Green)<br/>Class labels + confidence<br/>Encode as Base64 or JPEG"]
+        DrawAnnotations --> SendResponse["Send HTTP 200 Response<br/>JSON payload + annotated image<br/>Total Latency: p50~15-40ms"]
+    end
+    
+    Training --> Export
+    Export --> Deployment
+    ClientRequest --> Preprocessing
+    Preprocessing --> Inference
+    Inference --> PostProcessing
+    PostProcessing --> Output
+    
+    Deployment --> FastAPI
+    FastAPI -.->|Receives Request| Preprocessing
+    SendResponse -->|Returns to Client| ClientInput
+    
+    style Training fill:#e8f5e9
+    style Export fill:#fff3e0
+    style Deployment fill:#e3f2fd
+    style ClientRequest fill:#f3e5f5
+    style Preprocessing fill:#fce4ec
+    style Inference fill:#ffe0b2
+    style PostProcessing fill:#c8e6c9
+    style Output fill:#bbdefb

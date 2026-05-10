@@ -1,0 +1,47 @@
+flowchart TD
+    subgraph InputLayer["INPUT LAYER"]
+        ImageInput["Image 640×640×3"]
+    end
+    
+    ImageInput --> YOLOv8_BB["YOLOv8 Backbone<br/>CSPDarknet"]
+    ImageInput --> YOLOv9_BB["YOLOv9 Backbone<br/>GELAN+PGI"]
+    ImageInput --> YOLOv11_BB["YOLOv11 Backbone<br/>C3k2/C2ps"]
+    ImageInput --> YOLOv12_BB["YOLOv12 Backbone<br/>R-ELAN"]
+    ImageInput --> YOLOFPN_BB["YOLOv8-FPN Backbone<br/>CSPDarknet"]
+    
+    YOLOv8_BB --> YOLOv8_Neck["Multi-Scale Neck<br/>PANet Full"]
+    YOLOv9_BB --> YOLOv9_Neck["Multi-Scale Neck<br/>PANet+PGI"]
+    YOLOv11_BB --> YOLOv11_Neck["Multi-Scale Neck<br/>Efficient Fusion"]
+    YOLOv12_BB --> YOLOv12_Neck["Multi-Scale Neck<br/>Area Attention"]
+    YOLOFPN_BB --> YOLOFPN_Neck["Simplified Neck<br/>Top-Down Only"]
+    
+    YOLOv8_Neck --> YOLOv8_Head["Decoupled Head<br/>Standard"]
+    YOLOv9_Neck --> YOLOv9_Head["Decoupled Head<br/>PGI-Enhanced"]
+    YOLOv11_Neck --> YOLOv11_Head["Decoupled Head<br/>Optimized"]
+    YOLOv12_Neck --> YOLOv12_Head["Decoupled Head<br/>Attention-Guided"]
+    YOLOFPN_Neck --> YOLOFPN_Head["Decoupled Head<br/>Standard"]
+    
+    YOLOv8_Head --> YOLOv8_Out["Balanced Performance<br/>Latency: 6.91ms<br/>mAP50-95: 0.465"]
+    YOLOv9_Head --> YOLOv9_Out["Peak Accuracy<br/>Latency: 36.28ms<br/>mAP50-95: 0.485"]
+    YOLOv11_Head --> YOLOv11_Out["Practical Speed<br/>Latency: 9.35ms<br/>mAP50-95: 0.460"]
+    YOLOv12_Head --> YOLOv12_Out["Attention Refined<br/>Latency: 13.86ms<br/>mAP50-95: 0.463"]
+    YOLOFPN_Head --> YOLOFPN_Out["Maximum Speed<br/>Latency: 6.42ms<br/>mAP50-95: 0.396"]
+    
+    subgraph Characteristics["KEY DIFFERENTIATORS"]
+        PGI_Box["PGI (YOLOv9)<br/>Preserves info through layers<br/>Excellent for small objects"]
+        Attention_Box["Area Attention (YOLOv12)<br/>Regional context awareness<br/>Reduces false positives"]
+        Speed_Box["Simplified Neck (YOLO-FPN)<br/>Removes bottom-up path<br/>Highest FPS"]
+        Efficiency_Box["C3k2/C2ps (YOLOv11)<br/>Parameter-efficient design<br/>Best speed-accuracy"]
+    end
+    
+    style InputLayer fill:#e1f5ff
+    style YOLOv8_Out fill:#fff9c4
+    style YOLOv9_Out fill:#f8bbd0
+    style YOLOv11_Out fill:#b2dfdb
+    style YOLOv12_Out fill:#e1bee7
+    style YOLOFPN_Out fill:#ffccbc
+    style Characteristics fill:#f5f5f5
+    style PGI_Box fill:#c8e6c9
+    style Attention_Box fill:#e1bee7
+    style Speed_Box fill:#ffccbc
+    style Efficiency_Box fill:#fff9c4

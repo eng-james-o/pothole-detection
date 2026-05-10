@@ -1,0 +1,9 @@
+flowchart TB
+    A[Model Checkpoints] --> B[Scenario Grid by Image Size]
+    B --> C[Warmup]
+    C --> D[Timed Inference Loop]
+    D --> E[Latency Statistics]
+    E --> F[FPS Conversion]
+    E --> G[Scenario CSV]
+    F --> G
+    G --> H[Benchmark Plots]

@@ -1,0 +1,73 @@
+flowchart TD
+    I["Input Image<br/>640×640×3"] --> Stem["Conv 3×3 + BatchNorm + SiLU<br/>Output: 320×320×32"]
+    
+    Stem --> C2f_1["C2f Block (Cross-Stage Partial)<br/>320×320→160×160"]
+    C2f_1 --> C2f_2["C2f Block<br/>160×160→80×80"]
+    C2f_2 --> C2f_3["C2f Block<br/>80×80→40×40"]
+    C2f_3 --> SPPF["SPPF (Spatial Pyramid Pooling)<br/>Multi-scale receptive field"]
+    
+    subgraph Backbone["BACKBONE: CSPDarknet"]
+        direction TB
+        C2f_1
+        C2f_2
+        C2f_3
+        SPPF
+    end
+    
+    SPPF --> P5["P5: 40×40 (High-Level Semantics)"]
+    C2f_3 --> P4["P4: 80×80 (Mid-Level Features)"]
+    C2f_2 --> P3["P3: 160×160 (Low-Level Detail)"]
+    
+    subgraph Neck["NECK: Path Aggregation Network (PAN)"]
+        direction TB
+        P5 --> Up1["Upsample + Concat"]
+        P4 --> Up1
+        Up1 --> C2f_4["C2f Fusion<br/>80×80"]
+        
+        C2f_4 --> Up2["Upsample + Concat"]
+        P3 --> Up2
+        Up2 --> C2f_5["C2f Fusion<br/>160×160"]
+        
+        C2f_5 --> Down1["Downsample + Concat"]
+        C2f_4 --> Down1
+        Down1 --> C2f_6["C2f Fusion<br/>80×80"]
+        
+        C2f_6 --> Down2["Downsample + Concat"]
+        P5 --> Down2
+        Down2 --> C2f_7["C2f Fusion<br/>40×40"]
+    end
+    
+    C2f_5 --> FP3["FP3: 160×160"]
+    C2f_6 --> FP4["FP4: 80×80"]
+    C2f_7 --> FP5["FP5: 40×40"]
+    
+    subgraph Head["DECOUPLED HEAD: Anchor-Free Detection"]
+        direction TB
+        FP3 --> Cls3["Classification Conv<br/>80×80→80×80×80"]
+        FP3 --> Reg3["Regression Conv<br/>80×80→80×80×64"]
+        
+        FP4 --> Cls4["Classification Conv<br/>40×40→40×40×80"]
+        FP4 --> Reg4["Regression Conv<br/>40×40→40×40×64"]
+        
+        FP5 --> Cls5["Classification Conv<br/>20×20→20×20×80"]
+        FP5 --> Reg5["Regression Conv<br/>20×20→20×20×64"]
+        
+        Cls3 --> ClassLogits["Concatenate All Scale Predictions"]
+        Cls4 --> ClassLogits
+        Cls5 --> ClassLogits
+        
+        Reg3 --> BboxLogits["Concatenate All Scale Predictions"]
+        Reg4 --> BboxLogits
+        Reg5 --> BboxLogits
+        
+        ClassLogits --> NMS["Non-Maximum Suppression"]
+        BboxLogits --> NMS
+    end
+    
+    NMS --> Output["Final Detections<br/>Box Coordinates + Confidence Scores"]
+    
+    style I fill:#e1f5ff
+    style Backbone fill:#fff3e0
+    style Neck fill:#f3e5f5
+    style Head fill:#e8f5e9
+    style Output fill:#c8e6c9

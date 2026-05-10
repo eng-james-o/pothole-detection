@@ -1,0 +1,10 @@
+flowchart TB
+    A[Dataset + Config] --> B[EDA + Data Health Checks]
+    B --> C[Model Training]
+    C --> D[Checkpoint Verify / Resume]
+    D --> E["FPN Tuning Sweep (Optional)"]
+    E --> F[Model Export + Artifact Index]
+    F --> G[Qualitative Testing]
+    G --> H[Engineering Benchmarking]
+    H --> I[Final Table + Pareto Visualization]
+    I --> J[Report + Deployment Decision]
