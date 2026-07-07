@@ -10,6 +10,9 @@ pothole-detection (10).ipynb
 # Model files
 *.pt
 *.onnx
+Pothole_Research/YOLOv8-FPN/
+Pothole_Research/YOLOv11/
+Pothole_Research/YOLOv12n/
 
 # Reports
 *.pdf
