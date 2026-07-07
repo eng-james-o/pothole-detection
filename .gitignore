@@ -15,3 +15,7 @@ pothole-detection (10).ipynb
 *.pdf
 *.docx
 *.wbk
+
+# Data
+New-pothole-detection-2/
+pothole-detection-1/
