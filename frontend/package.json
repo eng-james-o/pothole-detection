@@ -1,0 +1,8 @@
+{
+  "name": "pothole-detection-frontend",
+  "version": "1.0.0",
+  "description": "Streamlit frontend for Pothole Detection API",
+  "scripts": {
+    "start": "streamlit run app.py --server.port $PORT --server.address 0.0.0.0"
+  }
+}

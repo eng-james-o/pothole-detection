@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ],
+  "env": {
+    "API_URL": {
+      "description": "URL of the backend API deployed on Render (e.g., https://pothole.onrender.com)"
+    }
+  }
+}
