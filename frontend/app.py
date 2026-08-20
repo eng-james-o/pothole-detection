@@ -51,6 +51,11 @@ def predict_image(
 
 
 def main() -> None:
+    # Initialize variables
+    selected_model = None
+    conf_threshold = 0.25
+    iou_threshold = 0.45
+
     # Sidebar for settings
     with st.sidebar:
         st.header("Settings")
@@ -100,15 +105,18 @@ def main() -> None:
             st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
 
             if st.button("Run Detection", type="primary"):
-                with st.spinner("Running detection..."):
-                    image_bytes = uploaded_file.read()
-                    result = predict_image(
-                        image_bytes,
-                        uploaded_file.name,
-                        model=selected_model,
-                        conf=conf_threshold,
-                        iou=iou_threshold,
-                    )
+                if not selected_model:
+                    st.error("Please wait for models to load or check API connection")
+                else:
+                    with st.spinner("Running detection..."):
+                        image_bytes = uploaded_file.read()
+                        result = predict_image(
+                            image_bytes,
+                            uploaded_file.name,
+                            model=selected_model,
+                            conf=conf_threshold,
+                            iou=iou_threshold,
+                        )
 
                 if result:
                     st.session_state["result"] = result
