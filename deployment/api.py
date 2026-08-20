@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from deployment.config import (
+from config import (
     APP_NAME,
     APP_VERSION,
     INFERENCE_CONF,
@@ -12,8 +12,8 @@ from deployment.config import (
     MAX_IMAGE_BYTES,
     MODEL_CONFIG_PATH,
 )
-from deployment.model_store import ModelStore
-from deployment.utils import decode_image, extract_detections
+from model_store import ModelStore
+from utils import decode_image, extract_detections
 
 store = ModelStore(MODEL_CONFIG_PATH)
 

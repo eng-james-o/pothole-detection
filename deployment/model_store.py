@@ -6,7 +6,7 @@ from urllib.request import Request, urlopen
 import yaml
 from ultralytics import YOLO
 
-from deployment.config import DEFAULT_MODEL_NAME, MODEL_CACHE_DIR
+from config import DEFAULT_MODEL_NAME, MODEL_CACHE_DIR
 
 class ModelStore:
     def __init__(self, config_path: Path) -> None:
